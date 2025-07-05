@@ -142,12 +142,12 @@ function escapeRegExp(string) {
   
       item.setTitle(question);
   
-      // Make all questions required if it's a quiz
+      // Make question required if quiz
       if (isQuiz && typeof item.setRequired === 'function') {
         item.setRequired(true);
       }
   
-      // Handle MC/CB/DD choice types
+      // MC/CB/DD with answer keys and choices
       if (
         answer &&
         typeof answer === 'object' &&
@@ -156,7 +156,6 @@ function escapeRegExp(string) {
       ) {
         const correct = Object.keys(answer)[0];
         const choices = answer[correct];
-  
         item.setChoiceValues(choices);
   
         // Only MC supports setCorrectAnswer
@@ -165,7 +164,7 @@ function escapeRegExp(string) {
         }
       }
   
-      // Handle grid types with proper column union
+      // Grid types with union of all columns
       else if (
         answer &&
         typeof answer === 'object' &&
@@ -174,21 +173,20 @@ function escapeRegExp(string) {
       ) {
         const rows = Object.keys(answer);
         const colSet = new Set();
-  
         rows.forEach(row => {
           answer[row].forEach(col => colSet.add(col));
         });
-  
         const columns = Array.from(colSet);
         item.setRows(rows).setColumns(columns);
+        // Note: No built-in answer validation for grids
       }
   
-      // Handle SA / LA types with response validation (regex) if quiz
+      // SA with exact match response validation if quiz
       else if (
         isQuiz &&
         answer &&
         typeof answer === 'string' &&
-        ['SA', 'LA'].includes(type)
+        type === 'SA'
       ) {
         try {
           item.setValidation(
@@ -201,15 +199,15 @@ function escapeRegExp(string) {
           Logger.log(`Failed to set validation for question ${i + 1}: ${e}`);
           item.setHelpText('Expected answer: ' + answer);
         }
-      } 
-      // For non-quiz or fallback, just add help text
+      }
+  
+      // LA or SA non-quiz just gets help text
       else if (
         !isQuiz &&
         answer &&
         typeof answer === 'string' &&
         ['SA', 'LA'].includes(type)
       ) {
-        item.setHelpText('Expected: ' + answer);
       }
     }
   
