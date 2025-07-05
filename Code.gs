@@ -142,12 +142,12 @@ function escapeRegExp(string) {
   
       item.setTitle(question);
   
-      // Make question required if quiz
+      // Make required if quiz
       if (isQuiz && typeof item.setRequired === 'function') {
         item.setRequired(true);
       }
   
-      // Handle MC/CB/DD choice types
+      // Handle MC/CB/DD
       if (
         answer &&
         typeof answer === 'object' &&
@@ -163,21 +163,19 @@ function escapeRegExp(string) {
           item.setCorrectAnswer(correct);
         }
   
-        // Add validation for Checkbox only (min 1 checked)
         if (type === 'CB') {
           try {
             const validation = FormApp.createCheckboxValidation()
               .setHelpText('Select at least one option.')
-              .setRequireSelectAtLeast(1)
+              .requireSelectAtLeast(1)
               .build();
             item.setValidation(validation);
           } catch (e) {
-            Logger.log('Failed to set CheckboxValidation for question ' + (i+1) + ': ' + e);
+            Logger.log('Failed to set CheckboxValidation for question ' + (i + 1) + ': ' + e);
           }
         }
       }
-  
-      // Handle grid types with proper column union
+      // Handle MCG, CG grids
       else if (
         answer &&
         typeof answer === 'object' &&
@@ -188,7 +186,6 @@ function escapeRegExp(string) {
         const colSet = new Set();
   
         rows.forEach(row => {
-          // Defensive check: ensure answer[row] is array
           if (Array.isArray(answer[row])) {
             answer[row].forEach(col => colSet.add(col));
           }
@@ -197,7 +194,6 @@ function escapeRegExp(string) {
         const columns = Array.from(colSet);
         item.setRows(rows).setColumns(columns);
   
-        // Add validation for grids
         try {
           if (type === 'MCG') {
             const validation = FormApp.createGridValidation()
@@ -214,34 +210,36 @@ function escapeRegExp(string) {
             item.setValidation(validation);
           }
         } catch (e) {
-          Logger.log('Failed to set grid validation for question ' + (i+1) + ': ' + e);
+          Logger.log('Failed to set grid validation for question ' + (i + 1) + ': ' + e);
         }
       }
-  
-      // Handle SA type with regex validation for exact answer
+      // SA regex validation (no ^ and $)
       else if (
         answer &&
         typeof answer === 'string' &&
         type === 'SA'
       ) {
         try {
-          // Escape special regex chars except ^ and $ if present
-          const regexPattern = answer;
-  
+          const regexPattern = escapeRegExp(answer); // escape any special chars to match literally
+          // NO ^ and $ so partial match allowed
           const validation = FormApp.createTextValidation()
-            .setHelpText('Answer must exactly match the required format.')
             .requireTextMatchesPattern(regexPattern)
+            .setHelpText('Your answer must include the correct phrase.')
             .build();
-  
           item.setValidation(validation);
+  
+          const correctFeedback = FormApp.createFeedback().setText("Correct!").build();
+          const incorrectFeedback = FormApp.createFeedback().setText("Incorrect. Try again!").build();
+  
+          item.setFeedbackForCorrect(correctFeedback);
+          item.setFeedbackForIncorrect(incorrectFeedback);
         } catch (e) {
-          Logger.log('Failed to set TextValidation for question ' + (i+1) + ': ' + e);
+          Logger.log('Failed to set TextValidation for question ' + (i + 1) + ': ' + e);
         }
       }
+      // No validation on LA as requested
   
-      // For LA (ParagraphText), no response validation (quiz maker validates manually)
-      
-      // For DateItem and TimeItem, you can add simple validation example if you want:
+      // Optional: date validation
       if (type === 'DT') {
         try {
           const validation = FormApp.createDateValidation()
@@ -250,10 +248,11 @@ function escapeRegExp(string) {
             .build();
           item.setValidation(validation);
         } catch (e) {
-          Logger.log('Failed to set DateValidation for question ' + (i+1) + ': ' + e);
+          Logger.log('Failed to set DateValidation for question ' + (i + 1) + ': ' + e);
         }
       }
-      
+  
+      // Optional: time validation
       if (type === 'TT') {
         try {
           const validation = FormApp.createTimeValidation()
@@ -262,13 +261,13 @@ function escapeRegExp(string) {
             .build();
           item.setValidation(validation);
         } catch (e) {
-          Logger.log('Failed to set TimeValidation for question ' + (i+1) + ': ' + e);
+          Logger.log('Failed to set TimeValidation for question ' + (i + 1) + ': ' + e);
         }
       }
-  
-    } // end for
+    }
   
     form.setPublished(publish);
     Logger.log('Published URL: ' + form.getPublishedUrl());
     Logger.log('Editor URL: ' + form.getEditUrl());
   }
+  
