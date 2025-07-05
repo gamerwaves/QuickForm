@@ -82,103 +82,109 @@ function createForm(shuffle, formData, isQuiz, publish) {
     Logger.log("Type of formData: " + typeof formData);
     Logger.log("formData keys: " + Object.keys(formData));
     
-  if (!formData || !Array.isArray(formData.questions) || !Array.isArray(formData.types)) {
-    throw new Error("Invalid form data structure");
-  }
-
-  const form = FormApp.create('AI Generated Form');
-  form.setIsQuiz(isQuiz);
-  form.setShuffleQuestions(shuffle);
-
-  const { questions, types, answers = [] } = formData;
-
-  for (let i = 0; i < questions.length; i++) {
-    const question = questions[i];
-    const type = types[i];
-    const answer = answers[i];
-    let item;
-
-    switch (type) {
-      case 'MC':
-        item = form.addMultipleChoiceItem();
-        break;
-      case 'SA':
-        item = form.addTextItem();
-        break;
-      case 'LA':
-        item = form.addParagraphTextItem();
-        break;
-      case 'CB':
-        item = form.addCheckboxItem();
-        break;
-      case 'DD':
-        item = form.addListItem();
-        break;
-      case 'LS':
-        item = form.addScaleItem().setBounds(1, 5);
-        break;
-      case 'RT':
-        item = form.addScaleItem().setBounds(1, 10);
-        break;
-      case 'MCG':
-        item = form.addGridItem();
-        break;
-      case 'CG':
-        item = form.addCheckboxGridItem();
-        break;
-      case 'DT':
-        item = form.addDateItem();
-        break;
-      case 'TT':
-        item = form.addTimeItem();
-        break;
-      default:
-        item = form.addMultipleChoiceItem();
+    if (!formData || !Array.isArray(formData.questions) || !Array.isArray(formData.types)) {
+      throw new Error("Invalid form data structure");
     }
-
-    item.setTitle(question);
-
-    // Handle choice-based types
-    if (
-      answer &&
-      typeof answer === 'object' &&
-      !Array.isArray(answer) &&
-      ['MC', 'CB', 'DD'].includes(type)
-    ) {
-      const correct = Object.keys(answer)[0];
-      const choices = answer[correct];
-
-      item.setChoiceValues(choices);
-
-      if (isQuiz && typeof item.setCorrectAnswer === 'function') {
-        item.setCorrectAnswer(correct);
+  
+    const form = FormApp.create('AI Generated Form');
+    form.setIsQuiz(isQuiz);
+    form.setShuffleQuestions(shuffle);
+  
+    const { questions, types, answers = [] } = formData;
+  
+    for (let i = 0; i < questions.length; i++) {
+      const question = questions[i];
+      const type = types[i];
+      const answer = answers[i];
+      let item;
+  
+      switch (type) {
+        case 'MC':
+          item = form.addMultipleChoiceItem();
+          break;
+        case 'SA':
+          item = form.addTextItem();
+          break;
+        case 'LA':
+          item = form.addParagraphTextItem();
+          break;
+        case 'CB':
+          item = form.addCheckboxItem();
+          break;
+        case 'DD':
+          item = form.addListItem();
+          break;
+        case 'LS':
+          item = form.addScaleItem().setBounds(1, 5);
+          break;
+        case 'RT':
+          item = form.addScaleItem().setBounds(1, 10);
+          break;
+        case 'MCG':
+          item = form.addGridItem();
+          break;
+        case 'CG':
+          item = form.addCheckboxGridItem();
+          break;
+        case 'DT':
+          item = form.addDateItem();
+          break;
+        case 'TT':
+          item = form.addTimeItem();
+          break;
+        default:
+          item = form.addMultipleChoiceItem();
+      }
+  
+      item.setTitle(question);
+  
+      // Handle MC/CB/DD choice types
+      if (
+        answer &&
+        typeof answer === 'object' &&
+        !Array.isArray(answer) &&
+        ['MC', 'CB', 'DD'].includes(type)
+      ) {
+        const correct = Object.keys(answer)[0];
+        const choices = answer[correct];
+  
+        item.setChoiceValues(choices);
+  
+        if (isQuiz && typeof item.setCorrectAnswer === 'function') {
+          item.setCorrectAnswer(correct);
+        }
+      }
+  
+      // Fix: Handle grid types with proper column union
+      else if (
+        answer &&
+        typeof answer === 'object' &&
+        !Array.isArray(answer) &&
+        ['MCG', 'CG'].includes(type)
+      ) {
+        const rows = Object.keys(answer);
+        const colSet = new Set();
+  
+        rows.forEach(row => {
+          answer[row].forEach(col => colSet.add(col));
+        });
+  
+        const columns = Array.from(colSet);
+        item.setRows(rows).setColumns(columns);
+      }
+  
+      // SA / LA help text
+      else if (
+        answer &&
+        typeof answer === 'string' &&
+        ['SA', 'LA'].includes(type)
+      ) {
+        item.setHelpText('Expected: ' + answer);
       }
     }
-
-    // Handle grid types
-    else if (
-      answer &&
-      typeof answer === 'object' &&
-      !Array.isArray(answer) &&
-      ['MCG', 'CG'].includes(type)
-    ) {
-      const rows = Object.keys(answer);
-      const columns = answer[rows[0]];
-      item.setRows(rows).setColumns(columns);
-      // You can log or store the correct answers separately if needed
-    }
-
-    // Handle short/long answer help text
-    else if (
-      answer &&
-      typeof answer === 'string' &&
-      ['SA', 'LA'].includes(type)
-    ) {
-      item.setHelpText('Expected: ' + answer);
-    }
+  
+    form.setPublished(publish);
+    Logger.log('Published URL: ' + form.getPublishedUrl());
+    Logger.log('Editor URL: ' + form.getEditUrl());
   }
-
-  form.setPublished(publish);
-  Logger.log('Published URL: ' + form.getPublishedUrl());
-  Logger.log('Editor URL: ' + form.getEditUrl());
-}
+  
