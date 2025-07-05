@@ -1,6 +1,7 @@
 const apiKey = PropertiesService.getScriptProperties().getProperty('genAIKey');
 function testRun() {
-    generateFormQuestions(5, 'easy', 'AI', 'English', 'ai-choice', true);  
+    const data = generateFormQuestions(5, 'easy', 'AI', 'English', 'ai-choice', true); 
+    createForm(true, true, data, true, true); 
 }
 function generateFormQuestions(amount, difficulty, topic, language, questionType, isQuiz) {
     const payload = {
