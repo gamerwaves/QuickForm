@@ -2,7 +2,7 @@ const apiKey = PropertiesService.getScriptProperties().getProperty('genAIKey');
 
 function testRun() {
     const raw = generateFormQuestions(11, 'medium', 'Elon Musk', 'English', 'all types 1 each question', true);
-  
+    console.log(raw);
     let data;
   
     try {
@@ -137,54 +137,60 @@ function createForm(shuffle, formData, isQuiz, publish) {
       }
   
       item.setTitle(question);
-  
-      // Handle MC/CB/DD choice types
-      if (
-        answer &&
-        typeof answer === 'object' &&
-        !Array.isArray(answer) &&
-        ['MC', 'CB', 'DD'].includes(type)
-      ) {
-        const correct = Object.keys(answer)[0];
-        const choices = answer[correct];
-  
-        item.setChoiceValues(choices);
-  
-        if (isQuiz && typeof item.setCorrectAnswer === 'function') {
-          item.setCorrectAnswer(correct);
-        }
-      }
-  
-      // Fix: Handle grid types with proper column union
-      else if (
-        answer &&
-        typeof answer === 'object' &&
-        !Array.isArray(answer) &&
-        ['MCG', 'CG'].includes(type)
-      ) {
-        const rows = Object.keys(answer);
-        const colSet = new Set();
-  
-        rows.forEach(row => {
-          answer[row].forEach(col => colSet.add(col));
-        });
-  
-        const columns = Array.from(colSet);
-        item.setRows(rows).setColumns(columns);
-      }
-  
-      // SA / LA help text
-      else if (
-        answer &&
-        typeof answer === 'string' &&
-        ['SA', 'LA'].includes(type)
-      ) {
-        item.setHelpText('Expected: ' + answer);
-      }
-    }
+
+// Make all questions required if it's a quiz
+if (isQuiz && typeof item.setRequired === 'function') {
+  item.setRequired(true);
+}
+
+// Handle MC/CB/DD choice types
+if (
+  answer &&
+  typeof answer === 'object' &&
+  !Array.isArray(answer) &&
+  ['MC', 'CB', 'DD'].includes(type)
+) {
+  const correct = Object.keys(answer)[0];
+  const choices = answer[correct];
+
+  item.setChoiceValues(choices);
+
+  // Only MC supports setCorrectAnswer
+  if (isQuiz && type === 'MC' && typeof item.setCorrectAnswer === 'function') {
+    item.setCorrectAnswer(correct);
+  }
+}
+
+// Handle grid types with proper column union
+else if (
+  answer &&
+  typeof answer === 'object' &&
+  !Array.isArray(answer) &&
+  ['MCG', 'CG'].includes(type)
+) {
+  const rows = Object.keys(answer);
+  const colSet = new Set();
+
+  rows.forEach(row => {
+    answer[row].forEach(col => colSet.add(col));
+  });
+
+  const columns = Array.from(colSet);
+  item.setRows(rows).setColumns(columns);
+}
+
+// Handle SA / LA types with expected answer hint
+else if (
+  answer &&
+  typeof answer === 'string' &&
+  ['SA', 'LA'].includes(type)
+) {
+  item.setHelpText('Expected: ' + answer);
+}
+
   
     form.setPublished(publish);
     Logger.log('Published URL: ' + form.getPublishedUrl());
     Logger.log('Editor URL: ' + form.getEditUrl());
   }
-  
+}
