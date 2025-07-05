@@ -50,30 +50,65 @@ Only return valid JSON. No comments, no extra text, no markdown.` },
     const data = JSON.parse(response);
     const content = data['candidates'][0]['content']['parts'][0]['text'];
     console.log(content);
+    return content;
 }
-function createForm() {
-    var form = FormApp.create('New Form', false);
-    var item = form.addCheckboxItem();
-    item.setTitle('What condiments would you like on your hot dog?');
-    item.setChoices([
-        item.createChoice('Ketchup'),
-        item.createChoice('Mustard'),
-        item.createChoice('Relish')
-    ]);
-    form.addMultipleChoiceItem()
-        .setTitle('Do you prefer cats or dogs?')
-        .setChoiceValues(['Cats', 'Dogs'])
-        .showOtherOption(true);
-    form.addPageBreakItem()
-        .setTitle('Getting to know you');
-    form.addDateItem()
-        .setTitle('When were you born?');
-    form.addGridItem()
-        .setTitle('Rate your interests')
-        .setRows(['Cars', 'Computers', 'Celebrities'])
-        .setColumns(['Boring', 'So-so', 'Interesting']);
+function createForm(prog_bar, shuffle, formData, isQuiz, publish) {
+    var form = FormApp.create('AI Generated Form', false);
+    form.setIsQuiz(isQuiz);
+    form.setShuffleQuestions(shuffle);
+    form.setProgressBarEnabled(prog_bar);
 
-    form.setPublished(true);
+    const { questions, types, answers = [] } = formData;
+
+    for (let i = 0; i < questions.length; i++) {
+        const question = questions[i];
+        const type = types[i];
+        const answer = answers[i];
+        let item;
+        
+        switch (type) {
+            case 'MC':
+                item = form.addMultipleChoiceItem();
+                break;
+            case 'SA':
+                item = form.addShortAnswerItem();
+                break;
+            case 'LA':
+                item = form.addLongAnswerItem();
+                break;
+            case 'CB':
+                item = form.addCheckboxItem();
+                break;
+            case 'DD':
+                item = form.addDropdownItem();
+                break;
+            case 'LS':
+                item = form.addLinearScaleItem();
+                break;
+            case 'RT':
+                item = form.addRatingItem();
+                break;
+            case 'MCG':
+                item = form.addMultipleChoiceGridItem();
+                break;
+            case 'CG':
+                item = form.addCheckboxGridItem();
+                break;
+            case 'DT':
+                item = form.addDateItem();
+                break;
+            case 'TT':
+                item = form.addTimeItem();
+                break;
+            default:
+                item = form.addMultipleChoiceItem();
+        }
+        item.setTitle(question);
+        if (answer) {
+            item.setChoiceValues(answer);
+        }
+    }
+    form.setPublished(publish);
 
     Logger.log('Published URL: ' + form.getPublishedUrl());
     Logger.log('Editor URL: ' + form.getEditUrl());
