@@ -3,12 +3,11 @@ const apiKey = PropertiesService.getScriptProperties().getProperty('genAIKey');
 function testRun() {
     const raw = generateFormQuestions(5, 'easy', 'AI', 'English', 'ai-choice', true);
   
-    // Clean and re-parse just in case
     let data;
     try {
       data = JSON.parse(raw);
       if (typeof data === "string") {
-        data = JSON.parse(data); // parsed into a stringified object — fix by parsing again
+        data = JSON.parse(data); // double-parsed if needed
       }
     } catch (e) {
       console.error("JSON parse error:", e);
@@ -17,6 +16,7 @@ function testRun() {
   
     createForm(true, true, data, true, true);
   }
+  
 
 function generateFormQuestions(amount, difficulty, topic, language, questionType, isQuiz) {
   const payload = {
