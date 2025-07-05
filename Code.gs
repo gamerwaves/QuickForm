@@ -4,20 +4,27 @@ function testRun() {
     const raw = generateFormQuestions(5, 'easy', 'AI', 'English', 'ai-choice', true);
   
     let data;
+  
     try {
       data = JSON.parse(raw);
-      if (typeof data === "string") {
-        data = JSON.parse(data); // double-parsed if needed
+  
+      // If it’s a string after first parse, parse again:
+      if (typeof data === 'string') {
+        data = JSON.parse(data);
       }
     } catch (e) {
-      console.error("JSON parse error:", e);
+      Logger.log("JSON parse error: " + e);
       return;
     }
   
+    Logger.log(data); // check that data is object with questions and types arrays
+    if (!data.questions || !Array.isArray(data.questions) || !data.types || !Array.isArray(data.types)) {
+        Logger.log("Form data structure invalid");
+        return;
+      }
     createForm(true, true, data, true, true);
   }
   
-
 function generateFormQuestions(amount, difficulty, topic, language, questionType, isQuiz) {
   const payload = {
     contents: [
@@ -72,6 +79,9 @@ Only return valid JSON. No comments, no extra text, no markdown.`
 }
 
 function createForm(shuffle, formData, isQuiz, publish) {
+    Logger.log("Type of formData: " + typeof formData);
+    Logger.log("formData keys: " + Object.keys(formData));
+    
   if (!formData || !Array.isArray(formData.questions) || !Array.isArray(formData.types)) {
     throw new Error("Invalid form data structure");
   }
