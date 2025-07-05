@@ -25,7 +25,7 @@ Your output must be a valid JSON object in this format:
 }
 
 Rules:
-- If isQuiz = true, include an "answers" key in the output.
+- If isQuiz = ${isQuiz} = true, include an "answers" key in the output.
   - For Multiple Choice, Checkbox, Dropdown, etc: format the answer for the question in the "answers" array as {"Actual Answer": [choice1, choice2, choice3, choice4]}.
   - For grid types (MCG, CG), format the answer for the question in the "answers" array as:
     {
@@ -59,7 +59,7 @@ Only return valid JSON. No comments, no extra text, no markdown.`
   return content;
 }
 
-function createForm(prog_bar, shuffle, formData, isQuiz, publish) {
+function createForm(shuffle, formData, isQuiz, publish) {
   if (!formData || !Array.isArray(formData.questions) || !Array.isArray(formData.types)) {
     throw new Error("Invalid form data structure");
   }
@@ -67,7 +67,6 @@ function createForm(prog_bar, shuffle, formData, isQuiz, publish) {
   const form = FormApp.create('AI Generated Form');
   form.setIsQuiz(isQuiz);
   form.setShuffleQuestions(shuffle);
-  form.setProgressBarEnabled(prog_bar);
 
   const { questions, types, answers = [] } = formData;
 
