@@ -1,7 +1,7 @@
 const apiKey = PropertiesService.getScriptProperties().getProperty('genAIKey');
 
 function testRun() {
-    const raw = generateFormQuestions(11, 'medium', 'Elon Musk', 'English', 'all questions diffrent type', true);
+    const raw = generateFormQuestions(11, 'medium', 'Elon Musk', 'English', 'all types 1 each question', true);
   
     let data;
   
