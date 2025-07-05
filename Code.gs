@@ -22,7 +22,7 @@ function testRun() {
         Logger.log("Form data structure invalid");
         return;
       }
-    createForm(true, true, data, true, true);
+    createForm(true, data, true, true);
   }
   
 function generateFormQuestions(amount, difficulty, topic, language, questionType, isQuiz) {
