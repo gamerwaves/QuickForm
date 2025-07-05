@@ -147,7 +147,7 @@ function escapeRegExp(string) {
         item.setRequired(true);
       }
   
-      // MC/CB/DD with answer keys and choices
+      // Handle MC/CB/DD choice types
       if (
         answer &&
         typeof answer === 'object' &&
@@ -156,15 +156,28 @@ function escapeRegExp(string) {
       ) {
         const correct = Object.keys(answer)[0];
         const choices = answer[correct];
+  
         item.setChoiceValues(choices);
   
-        // Only MC supports setCorrectAnswer
         if (isQuiz && type === 'MC' && typeof item.setCorrectAnswer === 'function') {
           item.setCorrectAnswer(correct);
         }
+  
+        // Add validation for Checkbox only (min 1 checked)
+        if (type === 'CB') {
+          try {
+            const validation = FormApp.createCheckboxValidation()
+              .setHelpText('Select at least one option.')
+              .setRequireSelectAtLeast(1)
+              .build();
+            item.setValidation(validation);
+          } catch (e) {
+            Logger.log('Failed to set CheckboxValidation for question ' + (i+1) + ': ' + e);
+          }
+        }
       }
   
-      // Grid types with union of all columns
+      // Handle grid types with proper column union
       else if (
         answer &&
         typeof answer === 'object' &&
@@ -173,46 +186,89 @@ function escapeRegExp(string) {
       ) {
         const rows = Object.keys(answer);
         const colSet = new Set();
+  
         rows.forEach(row => {
-          answer[row].forEach(col => colSet.add(col));
+          // Defensive check: ensure answer[row] is array
+          if (Array.isArray(answer[row])) {
+            answer[row].forEach(col => colSet.add(col));
+          }
         });
+  
         const columns = Array.from(colSet);
         item.setRows(rows).setColumns(columns);
-        // Note: No built-in answer validation for grids
+  
+        // Add validation for grids
+        try {
+          if (type === 'MCG') {
+            const validation = FormApp.createGridValidation()
+              .setHelpText('Please select one option per row.')
+              .requireLimitOneResponsePerRow()
+              .build();
+            item.setValidation(validation);
+          } else if (type === 'CG') {
+            const validation = FormApp.createCheckboxGridValidation()
+              .setHelpText('Please select at least one option per row.')
+              .requireLimitOneResponsePerRow()
+              .requireSelectAtLeast(1)
+              .build();
+            item.setValidation(validation);
+          }
+        } catch (e) {
+          Logger.log('Failed to set grid validation for question ' + (i+1) + ': ' + e);
+        }
       }
   
-      // SA with exact match response validation if quiz
+      // Handle SA type with regex validation for exact answer
       else if (
-        isQuiz &&
         answer &&
         typeof answer === 'string' &&
         type === 'SA'
       ) {
         try {
-          item.setValidation(
-            FormApp.createTextValidation()
-              .requireTextMatchesPattern(`^${escapeRegExp(answer)}$`)
-              .setHelpText('Please enter the exact correct answer.')
-              .build()
-          );
+          // Escape special regex chars except ^ and $ if present
+          const regexPattern = answer;
+  
+          const validation = FormApp.createTextValidation()
+            .setHelpText('Answer must exactly match the required format.')
+            .requireTextMatchesPattern(regexPattern)
+            .build();
+  
+          item.setValidation(validation);
         } catch (e) {
-          Logger.log(`Failed to set validation for question ${i + 1}: ${e}`);
-          item.setHelpText('Expected answer: ' + answer);
+          Logger.log('Failed to set TextValidation for question ' + (i+1) + ': ' + e);
         }
       }
   
-      // LA or SA non-quiz just gets help text
-      else if (
-        !isQuiz &&
-        answer &&
-        typeof answer === 'string' &&
-        ['SA', 'LA'].includes(type)
-      ) {
+      // For LA (ParagraphText), no response validation (quiz maker validates manually)
+      
+      // For DateItem and TimeItem, you can add simple validation example if you want:
+      if (type === 'DT') {
+        try {
+          const validation = FormApp.createDateValidation()
+            .setHelpText('Please enter a valid date.')
+            .requireDateIsValid()
+            .build();
+          item.setValidation(validation);
+        } catch (e) {
+          Logger.log('Failed to set DateValidation for question ' + (i+1) + ': ' + e);
+        }
       }
-    }
+      
+      if (type === 'TT') {
+        try {
+          const validation = FormApp.createTimeValidation()
+            .setHelpText('Please enter a valid time.')
+            .requireTimeIsValid()
+            .build();
+          item.setValidation(validation);
+        } catch (e) {
+          Logger.log('Failed to set TimeValidation for question ' + (i+1) + ': ' + e);
+        }
+      }
+  
+    } // end for
   
     form.setPublished(publish);
     Logger.log('Published URL: ' + form.getPublishedUrl());
     Logger.log('Editor URL: ' + form.getEditUrl());
   }
-  
