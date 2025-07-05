@@ -78,10 +78,14 @@ Only return valid JSON. No comments, no extra text, no markdown.`
   return content;
 }
 
-function createForm(shuffle, formData, isQuiz, publish) {
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+  
+  function createForm(shuffle, formData, isQuiz, publish) {
     Logger.log("Type of formData: " + typeof formData);
     Logger.log("formData keys: " + Object.keys(formData));
-  
+    
     if (!formData || !Array.isArray(formData.questions) || !Array.isArray(formData.types)) {
       throw new Error("Invalid form data structure");
     }
@@ -138,7 +142,7 @@ function createForm(shuffle, formData, isQuiz, publish) {
   
       item.setTitle(question);
   
-      // Make question required if quiz
+      // Make all questions required if it's a quiz
       if (isQuiz && typeof item.setRequired === 'function') {
         item.setRequired(true);
       }
@@ -155,16 +159,13 @@ function createForm(shuffle, formData, isQuiz, publish) {
   
         item.setChoiceValues(choices);
   
-        // MC supports correct answer marking in quiz mode
+        // Only MC supports setCorrectAnswer
         if (isQuiz && type === 'MC' && typeof item.setCorrectAnswer === 'function') {
-          try {
-            item.setCorrectAnswer(correct);
-          } catch (e) {
-            Logger.log(`Failed to set correct answer for question ${i + 1}: ${e}`);
-          }
+          item.setCorrectAnswer(correct);
         }
       }
-      // Handle grid types (MCG and CG)
+  
+      // Handle grid types with proper column union
       else if (
         answer &&
         typeof answer === 'object' &&
@@ -175,19 +176,14 @@ function createForm(shuffle, formData, isQuiz, publish) {
         const colSet = new Set();
   
         rows.forEach(row => {
-          const cols = answer[row];
-          if (Array.isArray(cols)) {
-            cols.forEach(col => colSet.add(col));
-          } else {
-            colSet.add(cols);
-          }
+          answer[row].forEach(col => colSet.add(col));
         });
   
         const columns = Array.from(colSet);
         item.setRows(rows).setColumns(columns);
-        // Note: Google Forms Apps Script API does not support setting correct answers for grids
       }
-      // Handle SA / LA types with response validation for correct answer
+  
+      // Handle SA / LA types with response validation (regex) if quiz
       else if (
         isQuiz &&
         answer &&
@@ -197,17 +193,24 @@ function createForm(shuffle, formData, isQuiz, publish) {
         try {
           item.setValidation(
             FormApp.createTextValidation()
-              .requireTextEqualTo(answer)
-              .setHelpText('Please enter the correct answer.')
+              .requireTextMatchesPattern(`^${escapeRegExp(answer)}$`)
+              .setHelpText('Please enter the exact correct answer.')
               .build()
           );
         } catch (e) {
           Logger.log(`Failed to set validation for question ${i + 1}: ${e}`);
-          // fallback to helpText if validation fails
           item.setHelpText('Expected answer: ' + answer);
         }
+      } 
+      // For non-quiz or fallback, just add help text
+      else if (
+        !isQuiz &&
+        answer &&
+        typeof answer === 'string' &&
+        ['SA', 'LA'].includes(type)
+      ) {
+        item.setHelpText('Expected: ' + answer);
       }
-  
     }
   
     form.setPublished(publish);
