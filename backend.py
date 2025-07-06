@@ -1,10 +1,7 @@
-import pprint
 import json, os
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
-from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from google import genai
 from google.genai import types
 
@@ -16,35 +13,15 @@ DISCOVERY_DOC = "https://forms.googleapis.com/$discovery/rest?version=v1"
 # Gemini setup
 genai_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-form_service = None
-
-def get_form_service():
-    global form_service
-    if form_service:
-        return form_service
-
-    creds = None
-    if os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            print("Launching browser for Google login...")
-            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
-
-    form_service = build(
+def get_form_service_from_token(access_token):
+    creds = Credentials(token=access_token)
+    return build(
         "forms",
         "v1",
         credentials=creds,
         discoveryServiceUrl=DISCOVERY_DOC,
         static_discovery=False,
     )
-    return form_service
 
 def generateFormQuestions(amount, difficulty, topic, language, questionType, isQuiz):
     prompt = f"""
@@ -66,7 +43,7 @@ Rules:
   - For Multiple Choice, Checkbox, Dropdown, etc: format the answer for the question in the "answers" array as {{"Actual Answer": ["choice1", "choice2", "choice3", "choice4"]}}. Instead of "Actual Answers", use the actual answer.
   - For short/long answer or others without clear choices, you can use simple strings or null.
 - If isQuiz = false, do not include the "answers" key at all — just return "questions" and "types", else explicitly include "answers". There should be no null values in the "answers" array.
-
+This is invalid format: {{'Ice Hockey': ['Ice Hockey', 'Lacrosse', 'Basketball', 'Soccer'], 'Lacrosse': ['Ice Hockey', 'Lacrosse', 'Basketball', 'Soccer']}}
 Only return valid JSON. No comments, no extra text, no markdown.
 """
     response = genai_client.models.generate_content(
@@ -79,10 +56,17 @@ Only return valid JSON. No comments, no extra text, no markdown.
         print("[!] Failed to parse Gemini response:", e)
         return {"questions": [], "types": [], "answers": []}
 
-def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
+def create_form_with_questions(form_data, access_token, shuffle=True, is_quiz=True):
+    form_service = get_form_service_from_token(access_token)
     form_title = "AI Generated Form"
     new_form = {"info": {"title": form_title}}
-    result = get_form_service().forms().create(body=new_form).execute()
+
+    try:
+        result = form_service.forms().create(body=new_form).execute()
+    except Exception as e:
+        print("[!] Failed to create form:", e)
+        return None
+
     form_id = result["formId"]
 
     if is_quiz:
@@ -96,7 +80,7 @@ def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
                 }
             ]
         }
-        get_form_service().forms().batchUpdate(formId=form_id, body=quiz_update).execute()
+        form_service.forms().batchUpdate(formId=form_id, body=quiz_update).execute()
 
     requests = []
     form_index = 0
@@ -137,16 +121,13 @@ def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
             }
 
             if is_quiz:
-                if q_type == "CB":
-                    if isinstance(correct, str):
-                        correct_values = [v.strip() for v in correct.split(",")]
-                    elif isinstance(correct, list):
-                        correct_values = correct
-                    else:
-                        correct_values = []
-                    correct_values = [v for v in correct_values if v in choices]
-                else:
-                    correct_values = [correct] if correct in choices else []
+                correct_values = (
+                    [v.strip() for v in correct.split(",")]
+                    if isinstance(correct, str)
+                    else correct if isinstance(correct, list)
+                    else []
+                )
+                correct_values = [v for v in correct_values if v in choices]
 
                 grading = {
                     "pointValue": 1,
@@ -187,8 +168,6 @@ def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
             question_data.get(k) for k in ["choiceQuestion", "textQuestion", "rowQuestion"]
         ):
             item["questionItem"]["grading"] = question_data.pop("grading")
-        if "required" in question_data:
-            question_data.pop("required")
 
         requests.append({
             "createItem": {
@@ -200,9 +179,13 @@ def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
 
     if not requests:
         print("[!] No questions to add, aborting.")
-        return
+        return None
 
-    response = get_form_service().forms().batchUpdate(formId=form_id, body={"requests": requests}).execute()
+    try:
+        response = form_service.forms().batchUpdate(formId=form_id, body={"requests": requests}).execute()
+    except Exception as e:
+        print("[!] Failed to add questions:", e)
+        return None
 
     update_requests = []
     for reply in response.get("replies", []):
@@ -219,7 +202,10 @@ def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
             })
 
     if update_requests:
-        get_form_service().forms().batchUpdate(formId=form_id, body={"requests": update_requests}).execute()
+        try:
+            form_service.forms().batchUpdate(formId=form_id, body={"requests": update_requests}).execute()
+        except Exception as e:
+            print("[!] Failed to update required status:", e)
 
     print(f"Form created: https://docs.google.com/forms/d/{form_id}/edit")
     return form_id
