@@ -1,4 +1,4 @@
-.clasp.json
 .credentials.json
 .env
 .token.json
+.venv

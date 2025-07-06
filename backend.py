@@ -43,7 +43,7 @@ Your output must be a valid JSON object in this format:
 Rules:
 - A phrase would be a short answer. If the text is longer than that, it should be a long answer.
 - If isQuiz = {isQuiz} = true, include an "answers" key in the output.
-  - For Multiple Choice, Checkbox, Dropdown, etc: format the answer for the question in the "answers" array as {{"Actual Answer": ["choice1", "choice2", "choice3", "choice4"]}}.
+  - For Multiple Choice, Checkbox, Dropdown, etc: format the answer for the question in the "answers" array as {{"Actual Answer": ["choice1", "choice2", "choice3", "choice4"]}}. Instead of "Actual Answers", use the actual answer.
   - For short/long answer or others without clear choices, you can use simple strings or null.
 - If isQuiz = false, do not include the "answers" key at all — just return "questions" and "types", else explicitly include "answers". There should be no null values in the "answers" array.
 
@@ -79,6 +79,7 @@ def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
         form_service.forms().batchUpdate(formId=form_id, body=quiz_update).execute()
 
     requests = []
+    form_index = 0  # keep clean indexes even when skipping
     questions = form_data.get("questions", [])
     types = form_data.get("types", [])
     answers = form_data.get("answers", [])
@@ -123,7 +124,6 @@ def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
                         correct_values = correct
                     else:
                         correct_values = []
-
                     correct_values = [v for v in correct_values if v in choices]
                 else:
                     correct_values = [correct] if correct in choices else []
@@ -162,7 +162,7 @@ def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
         if grading:
             item["questionItem"]["question"]["grading"] = grading
 
-        # Clean up misplaced grading or required fields
+        # Cleanup misplaced grading/required
         question_data = item["questionItem"]["question"]
         if "grading" in question_data and not any(
             question_data.get(k) for k in ["choiceQuestion", "textQuestion", "rowQuestion"]
@@ -174,9 +174,10 @@ def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
         requests.append({
             "createItem": {
                 "item": item,
-                "location": {"index": i}
+                "location": {"index": form_index}
             }
         })
+        form_index += 1
 
     if not requests:
         print("[!] No questions to add, aborting.")
@@ -184,7 +185,7 @@ def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
 
     response = form_service.forms().batchUpdate(formId=form_id, body={"requests": requests}).execute()
 
-    # Add `required: true` after creation
+    # Add required=true for each created item
     update_requests = []
     for reply in response.get("replies", []):
         item_id = reply.get("createItem", {}).get("item", {}).get("itemId")
@@ -205,8 +206,9 @@ def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
     print(f"Form created: https://docs.google.com/forms/d/{form_id}/edit")
     return form_id
 
+
 if __name__ == "__main__":
-    raw_data = generateFormQuestions(10, "medium", "Elon Musk", "English", "ai_choice", True)
+    raw_data = generateFormQuestions(10, "medium", "Federal Elections Germany 2021", "English", "ai_choice", True)
     pprint.pprint(raw_data)
     data = raw_data if isinstance(raw_data, dict) else json.loads(raw_data)
     pprint.pprint(data)
