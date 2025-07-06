@@ -97,12 +97,11 @@ def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
         grading = None
 
         if q_type in ["MC", "CB", "DD"]:
-            if isinstance(answer, dict) and len(answer) == 1:
-                correct, choices = list(answer.items())[0]
-            else:
-                print(f"[!] Question {i+1} missing proper choices. Using default options.")
-                correct = "Option 1"
-                choices = ["Option 1", "Option 2", "Option 3", "Option 4"]
+            if not isinstance(answer, dict) or len(answer) != 1:
+                print(f"[!] Question {i+1} has invalid answer format: {answer}")
+                continue
+
+            correct, choices = list(answer.items())[0]
 
             qtype_map = {
                 "MC": "RADIO",
@@ -117,10 +116,22 @@ def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
             }
 
             if is_quiz:
+                if q_type == "CB":
+                    if isinstance(correct, str):
+                        correct_values = [v.strip() for v in correct.split(",")]
+                    elif isinstance(correct, list):
+                        correct_values = correct
+                    else:
+                        correct_values = []
+
+                    correct_values = [v for v in correct_values if v in choices]
+                else:
+                    correct_values = [correct] if correct in choices else []
+
                 grading = {
                     "pointValue": 1,
                     "correctAnswers": {
-                        "answers": [{"value": correct}]
+                        "answers": [{"value": val} for val in correct_values]
                     },
                     "whenRight": {"text": "Correct!"},
                     "whenWrong": {"text": "Wrong answer."}
@@ -151,7 +162,7 @@ def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
         if grading:
             item["questionItem"]["question"]["grading"] = grading
 
-        # Remove any 'required' key if present, don't add it here
+        # Clean up misplaced grading or required fields
         question_data = item["questionItem"]["question"]
         if "grading" in question_data and not any(
             question_data.get(k) for k in ["choiceQuestion", "textQuestion", "rowQuestion"]
@@ -171,10 +182,9 @@ def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
         print("[!] No questions to add, aborting.")
         return
 
-    # Step 1: Create all questions
     response = form_service.forms().batchUpdate(formId=form_id, body={"requests": requests}).execute()
 
-    # Step 2: Set required=true for each question
+    # Add `required: true` after creation
     update_requests = []
     for reply in response.get("replies", []):
         item_id = reply.get("createItem", {}).get("item", {}).get("itemId")
@@ -194,7 +204,6 @@ def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
 
     print(f"Form created: https://docs.google.com/forms/d/{form_id}/edit")
     return form_id
-
 
 if __name__ == "__main__":
     raw_data = generateFormQuestions(10, "medium", "Elon Musk", "English", "ai_choice", True)
