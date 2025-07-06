@@ -2,3 +2,6 @@ credentials.json
 .env
 token.json
 .venv
+credentials.json
+token.json
+.env
