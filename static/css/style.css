@@ -1,0 +1,85 @@
+body {
+  background-color: #f3edf7;
+  font-family: "Roboto", sans-serif;
+}
+
+.form-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 40px;
+}
+
+.form-box {
+  width: 640px;
+  background-color: white;
+  padding: 24px 32px;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(60,64,67,0.3), 0 2px 6px 2px rgba(60,64,67,0.15);
+  border-top: 8px solid #673ab7;
+}
+
+h1 {
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.desc {
+  font-size: 14px;
+  color: #5f6368;
+  margin-bottom: 20px;
+}
+
+.form-label {
+  font-weight: 500;
+}
+
+.required {
+  color: red;
+}
+
+.question-block {
+  margin-top: 20px;
+  font-size: 15px;
+}
+
+button {
+  background-color: #673ab7;
+  border: none;
+}
+
+button:hover {
+  background-color: #5a2ca0;
+}
+:root {
+    --form-purple: #673ab7;
+  }
+  
+  input.form-control:focus,
+  select.form-select:focus,
+  textarea.form-control:focus {
+    border-color: var(--form-purple);
+    box-shadow: 0 0 0 0.2rem rgba(103, 58, 183, 0.25);
+  }
+  
+  .form-check-input:checked {
+    background-color: var(--form-purple);
+    border-color: var(--form-purple);
+  }
+  
+  button.btn-primary {
+    background-color: var(--form-purple);
+    border-color: var(--form-purple);
+  }
+  
+  button.btn-primary:hover {
+    background-color: #5e35b1;
+    border-color: #5e35b1;
+  }
+  .text-purple {
+    color: #6f42c1 !important; /* Bootstrap's purple-600 */
+  }
+
+  .spinner-border.text-purple {
+    border-color: #6f42c1;
+    border-right-color: transparent;
+  }

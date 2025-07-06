@@ -1,30 +1,50 @@
 import pprint
-from googleapiclient import discovery
-from httplib2 import Http
-from oauth2client import client, file, tools
+import json, os
+from dotenv import load_dotenv
+from googleapiclient.discovery import build
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
 from google import genai
 from google.genai import types
-from dotenv import load_dotenv
-import json, os
 
 load_dotenv()
-SCOPES = "https://www.googleapis.com/auth/forms.body"
+
+SCOPES = ["https://www.googleapis.com/auth/forms.body"]
 DISCOVERY_DOC = "https://forms.googleapis.com/$discovery/rest?version=v1"
 
+# Gemini setup
 genai_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-store = file.Storage("token.json")
-creds = None
-if not creds or creds.invalid:
-    flow = client.flow_from_clientsecrets("credentials.json", SCOPES)
-    creds = tools.run_flow(flow, store)
 
-form_service = discovery.build(
-    "forms",
-    "v1",
-    http=creds.authorize(Http()),
-    discoveryServiceUrl=DISCOVERY_DOC,
-    static_discovery=False,
-)
+form_service = None
+
+def get_form_service():
+    global form_service
+    if form_service:
+        return form_service
+
+    creds = None
+    if os.path.exists("token.json"):
+        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            print("Launching browser for Google login...")
+            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
+            creds = flow.run_local_server(port=0)
+        with open("token.json", "w") as token:
+            token.write(creds.to_json())
+
+    form_service = build(
+        "forms",
+        "v1",
+        credentials=creds,
+        discoveryServiceUrl=DISCOVERY_DOC,
+        static_discovery=False,
+    )
+    return form_service
 
 def generateFormQuestions(amount, difficulty, topic, language, questionType, isQuiz):
     prompt = f"""
@@ -62,7 +82,7 @@ Only return valid JSON. No comments, no extra text, no markdown.
 def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
     form_title = "AI Generated Form"
     new_form = {"info": {"title": form_title}}
-    result = form_service.forms().create(body=new_form).execute()
+    result = get_form_service().forms().create(body=new_form).execute()
     form_id = result["formId"]
 
     if is_quiz:
@@ -76,10 +96,10 @@ def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
                 }
             ]
         }
-        form_service.forms().batchUpdate(formId=form_id, body=quiz_update).execute()
+        get_form_service().forms().batchUpdate(formId=form_id, body=quiz_update).execute()
 
     requests = []
-    form_index = 0  # keep clean indexes even when skipping
+    form_index = 0
     questions = form_data.get("questions", [])
     types = form_data.get("types", [])
     answers = form_data.get("answers", [])
@@ -162,7 +182,6 @@ def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
         if grading:
             item["questionItem"]["question"]["grading"] = grading
 
-        # Cleanup misplaced grading/required
         question_data = item["questionItem"]["question"]
         if "grading" in question_data and not any(
             question_data.get(k) for k in ["choiceQuestion", "textQuestion", "rowQuestion"]
@@ -183,9 +202,8 @@ def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
         print("[!] No questions to add, aborting.")
         return
 
-    response = form_service.forms().batchUpdate(formId=form_id, body={"requests": requests}).execute()
+    response = get_form_service().forms().batchUpdate(formId=form_id, body={"requests": requests}).execute()
 
-    # Add required=true for each created item
     update_requests = []
     for reply in response.get("replies", []):
         item_id = reply.get("createItem", {}).get("item", {}).get("itemId")
@@ -201,15 +219,7 @@ def create_form_with_questions(form_data, shuffle=True, is_quiz=True):
             })
 
     if update_requests:
-        form_service.forms().batchUpdate(formId=form_id, body={"requests": update_requests}).execute()
+        get_form_service().forms().batchUpdate(formId=form_id, body={"requests": update_requests}).execute()
 
     print(f"Form created: https://docs.google.com/forms/d/{form_id}/edit")
     return form_id
-
-
-if __name__ == "__main__":
-    raw_data = generateFormQuestions(10, "medium", "Federal Elections Germany 2021", "English", "ai_choice", True)
-    pprint.pprint(raw_data)
-    data = raw_data if isinstance(raw_data, dict) else json.loads(raw_data)
-    pprint.pprint(data)
-    create_form_with_questions(data, shuffle=True, is_quiz=True)
