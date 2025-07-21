@@ -21,7 +21,7 @@ QuickForm is a tool that automatically generates Google Forms quizzes from image
 1. **Clone the repo**
 
 ```bash
-git clone https://github.com/yourusername/quickform.git
+git clone https://github.com/gamerwaves/quickform.git
 cd quickform
 ```
 
