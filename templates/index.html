@@ -1,183 +1,223 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
-  <title>QuickForm</title>
-  <script src="https://accounts.google.com/gsi/client" async defer onload="googleReady()"></script>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/css/style.css" />
-  <style>
-    .hidden {
-      display: none;
-    }
-    .btn-primary, .btn-outline-primary {
-      background-color: #673ab7;
-      border-color: #673ab7;
-    }
-    .btn-primary:hover, .btn-outline-primary:hover {
-      background-color: #5e35b1;
-      border-color: #5e35b1;
-    }
-    .form-control:focus, .form-select:focus {
-      border-color: #673ab7;
-      box-shadow: 0 0 0 0.2rem rgba(103, 58, 183, 0.25);
-    }
-    .spinner-border.text-purple {
-      color: #673ab7;
-    }
-    .color-white {
-        color: white;
-    }
-  </style>
+    <meta charset="UTF-8" />
+    <title>QuickForm</title>
+    <!-- Load Google Identity Services script -->
+    <script src="https://accounts.google.com/gsi/client" async></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/css/style.css" />
+    <style>
+        .hidden {
+            display: none;
+        }
+
+        .btn-primary,
+        .btn-outline-primary {
+            background-color: #673ab7;
+            border-color: #673ab7;
+        }
+
+        .btn-primary:hover,
+        .btn-outline-primary:hover {
+            background-color: #5e35b1;
+            border-color: #5e35b1;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: #673ab7;
+            box-shadow: 0 0 0 0.2rem rgba(103, 58, 183, 0.25);
+        }
+
+        .spinner-border.text-purple {
+            color: #673ab7;
+        }
+
+        .color-white {
+            color: white;
+        }
+    </style>
 </head>
+
 <body>
-  <div class="form-container">
-    <div class="form-box">
-      <h1>QuickForm</h1>
-      <p class="desc">An AI Google Form Generator</p>
+    <div class="form-container">
+        <div class="form-box">
+            <h1>QuickForm</h1>
+            <p class="desc">An AI Google Form Generator</p>
 
-      <!-- Sign In -->
-      <div id="login-box" class="text-center">
-        <button id="google-auth" class="btn color-white btn-outline-primary">Sign in with Google</button>
-      </div>
+            <!-- Sign In -->
+            <div id="login-box" class="text-center">
+                <button id="google-auth" class="btn color-white btn-outline-primary">Sign in with Google</button>
+            </div>
 
-      <!-- Form -->
-      <form id="form-generator" class="hidden mt-4">
-        <div class="mb-3">
-          <label class="form-label">Topic <span class="required">*</span></label>
-          <input type="text" class="form-control" name="topic" required placeholder="e.g., Federal Elections Germany 2021" />
+            <!-- Form -->
+            <form id="form-generator" class="hidden mt-4" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label class="form-label">Topic <span class="required">*</span></label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" name="topic" required placeholder="e.g., Federal Elections Germany 2021" />
+                        <button type="button" class="btn btn-outline-secondary" id="uploadBtn">+</button>
+                        <input type="file" id="fileInput" name="image" accept="image/*" class="d-none" />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Language <span class="required">*</span></label>
+                    <input type="text" class="form-control" name="language" required placeholder="e.g., English" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Difficulty <span class="required">*</span></label>
+                    <select class="form-select" name="difficulty">
+                        <option value="easy">Easy</option>
+                        <option selected value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Question Type <span class="required">*</span></label>
+                    <select class="form-select" name="questionType">
+                        <option value="ai_choice" selected>AI Choose</option>
+                        <option value="MC">Multiple Choice</option>
+                        <option value="SA">Short Answer</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Number of Questions <span class="required">*</span></label>
+                    <input type="number" class="form-control" name="amount" value="5" min="1" required />
+                </div>
+
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" name="isQuiz" id="isQuiz" checked />
+                    <label class="form-check-label" for="isQuiz">This is a quiz</label>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Generate Questions</button>
+            </form>
+
+            <!-- Spinner -->
+            <div id="spinner" class="text-center hidden mt-4">
+                <div class="spinner-border text-purple" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Generating form...</p>
+            </div>
+
+            <!-- Result -->
+            <div id="generated-questions" class="mt-4"></div>
         </div>
-
-        <div class="mb-3">
-          <label class="form-label">Language <span class="required">*</span></label>
-          <input type="text" class="form-control" name="language" required placeholder="e.g., English" />
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label">Difficulty <span class="required">*</span></label>
-          <select class="form-select" name="difficulty">
-            <option value="easy">Easy</option>
-            <option selected value="medium">Medium</option>
-            <option value="hard">Hard</option>
-          </select>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label">Question Type <span class="required">*</span></label>
-          <select class="form-select" name="questionType">
-            <option value="ai_choice" selected>AI Choose</option>
-            <option value="MC">Multiple Choice</option>
-            <option value="SA">Short Answer</option>
-          </select>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label">Number of Questions <span class="required">*</span></label>
-          <input type="number" class="form-control" name="amount" value="5" min="1" required />
-        </div>
-
-        <div class="form-check mb-3">
-          <input class="form-check-input" type="checkbox" name="isQuiz" id="isQuiz" checked />
-          <label class="form-check-label" for="isQuiz">This is a quiz</label>
-        </div>
-
-        <button type="submit" class="btn btn-primary">Generate Questions</button>
-      </form>
-
-      <!-- Spinner -->
-      <div id="spinner" class="text-center hidden mt-4">
-        <div class="spinner-border text-purple" role="status">
-          <span class="visually-hidden">Loading...</span>
-        </div>
-        <p>Generating form...</p>
-      </div>
-
-      <!-- Result -->
-      <div id="generated-questions" class="mt-4"></div>
     </div>
-  </div>
 
-  <script>
-    let accessToken = null;
-    let tokenClient;
+    <script>
+        let accessToken = null;
+        let tokenClient;
+        let imageFile = null;
 
-    function googleReady() {
-      tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: '411493969069-886oukbj7ikhq4pfbpeid2vhuo1tgjs3.apps.googleusercontent.com',
-        scope: 'https://www.googleapis.com/auth/forms.body',
-        callback: (tokenResponse) => {
-          accessToken = tokenResponse.access_token;
-          console.log("✅ Access token received:", accessToken);
-          document.getElementById("login-box").classList.add("hidden");
-          document.getElementById("form-generator").classList.remove("hidden");
-        },
-      });
-
-      document.getElementById("google-auth").addEventListener("click", () => {
-        tokenClient.requestAccessToken();
-      });
-    }
-
-    document.getElementById("form-generator").addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      if (!accessToken) {
-        alert("Please sign in first.");
-        return;
-      }
-
-      const formData = new FormData(e.target);
-      const data = {
-        topic: formData.get("topic"),
-        language: formData.get("language"),
-        difficulty: formData.get("difficulty"),
-        questionType: formData.get("questionType"),
-        amount: parseInt(formData.get("amount")),
-        isQuiz: formData.get("isQuiz") !== null,
-        accessToken: accessToken,
-      };
-
-      const spinner = document.getElementById("spinner");
-      const container = document.getElementById("generated-questions");
-      container.innerHTML = "";
-      spinner.classList.remove("hidden");
-
-      try {
-        const res = await fetch("/api/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        });
-
-        const json = await res.json();
-        spinner.classList.add("hidden");
-
-        if (json.error) {
-          container.innerHTML = `<p class="text-danger">${json.error}</p>`;
-          return;
+        // Init Google OAuth2 client
+        function initGoogleClient() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: '411493969069-886oukbj7ikhq4pfbpeid2vhuo1tgjs3.apps.googleusercontent.com',
+                scope: 'https://www.googleapis.com/auth/forms.body',
+                callback: (tokenResponse) => {
+                    if (tokenResponse.error) {
+                        console.error('Token error', tokenResponse.error);
+                        return;
+                    }
+                    accessToken = tokenResponse.access_token;
+                    console.log("✅ Access token received:", accessToken);
+                    document.getElementById("login-box").classList.add("hidden");
+                    document.getElementById("form-generator").classList.remove("hidden");
+                }
+            });
         }
 
-        json.questions.forEach((q, i) => {
-          const el = document.createElement("div");
-          el.className = "question-block";
-          el.innerHTML = `<strong>Q${i + 1}:</strong> ${q}`;
-          container.appendChild(el);
-        });
+        window.onload = () => {
+            // Wait till GSI lib loaded before init
+            if (window.google && google.accounts && google.accounts.oauth2) {
+                initGoogleClient();
+            } else {
+                console.error("Google Identity Services not loaded");
+            }
 
-        if (json.formUrl) {
-          const link = document.createElement("a");
-          link.href = json.formUrl;
-          link.target = "_blank";
-          link.textContent = "Open Generated Google Form";
-          link.className = "btn btn-success mt-3";
-          container.appendChild(link);
-        }
-      } catch (err) {
-        spinner.classList.add("hidden");
-        container.innerHTML = "<p class='text-danger'>Failed to generate form. Try again.</p>";
-        console.error(err);
-      }
-    });
-  </script>
+            document.getElementById("google-auth").addEventListener("click", () => {
+                if (!tokenClient) {
+                    alert("Google OAuth client not ready. Try refreshing.");
+                    return;
+                }
+                tokenClient.requestAccessToken();
+            });
+
+            document.getElementById("uploadBtn").addEventListener("click", () => {
+                document.getElementById("fileInput").click();
+            });
+
+            document.getElementById("fileInput").addEventListener("change", (e) => {
+                imageFile = e.target.files[0];
+                if (imageFile) {
+                    document.getElementById("uploadBtn").textContent = "✓";
+                } else {
+                    document.getElementById("uploadBtn").textContent = "+";
+                }
+            });
+
+            document.getElementById("form-generator").addEventListener("submit", async (e) => {
+                e.preventDefault();
+
+                if (!accessToken) {
+                    alert("Please sign in first.");
+                    return;
+                }
+
+                const formData = new FormData(e.target);
+                formData.append("accessToken", accessToken);
+                if (imageFile) formData.append("image", imageFile);
+
+                const spinner = document.getElementById("spinner");
+                const container = document.getElementById("generated-questions");
+                container.innerHTML = "";
+                spinner.classList.remove("hidden");
+
+                try {
+                    const res = await fetch("/api/generate", {
+                        method: "POST",
+                        body: formData,
+                    });
+
+                    const json = await res.json();
+                    spinner.classList.add("hidden");
+
+                    if (json.error) {
+                        container.innerHTML = `<p class="text-danger">${json.error}</p>`;
+                        return;
+                    }
+
+                    json.questions.forEach((q, i) => {
+                        const el = document.createElement("div");
+                        el.className = "question-block";
+                        el.innerHTML = `<strong>Q${i + 1}:</strong> ${q}`;
+                        container.appendChild(el);
+                    });
+
+                    if (json.formUrl) {
+                        const link = document.createElement("a");
+                        link.href = json.formUrl;
+                        link.target = "_blank";
+                        link.textContent = "Open Generated Google Form";
+                        link.className = "btn btn-success mt-3";
+                        container.appendChild(link);
+                    }
+                } catch (err) {
+                    spinner.classList.add("hidden");
+                    container.innerHTML = "<p class='text-danger'>Failed to generate form. Try again.</p>";
+                    console.error(err);
+                }
+            });
+        };
+    </script>
 </body>
+
 </html>
