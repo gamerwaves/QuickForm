@@ -5,4 +5,6 @@ venv
 credentials.json
 token.json
 .env
+detect_image.py
+crop.py
 __pycache__
