@@ -25,7 +25,10 @@ def get_form_service_from_token(access_token):
         static_discovery=False,
     )
 
+
+
 def generateFormQuestions(amount, difficulty, topic, language, questionType, isQuiz, image=None):
+    global cropped
     print("[DEBUG] GENERATING QUESTIONS")
     prompt = f"""
 In the entire text, if theres double outer curly braces, remove them, they never existed. They are for formatting purpouses. Generate {amount} Google Form questions with difficulty level {difficulty} about "{topic}" in "{language}". 
@@ -222,6 +225,7 @@ def create_form_with_questions(form_data, access_token, shuffle=True, is_quiz=Tr
         # Add grading to the question if it exists
         if grading:
             item["questionItem"]["question"]["grading"] = grading
+        print(item)    
 
         requests.append({
             "createItem": {
