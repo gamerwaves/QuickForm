@@ -35,7 +35,7 @@ requests = [{
             },
             "grade": {
                 "pointValue": 1,
-                "correctAnswers": {"answers": [{"value": "4"}]},
+                "correctAnswers": {"answers": [{"value": "4\5"}]},
                 "generalFeedback": {"text": "Auto-graded short answer."}
             }
         },
