@@ -1,0 +1,7 @@
+{
+  "commands": {},
+  "framework": "flask",
+  "server": "uvicorn",
+  "wsgi_application": "app:app",
+  "main_file": "app.py"
+}
