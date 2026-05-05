@@ -1,11 +1,11 @@
-flask
-gunicorn
+Flask
 numpy
 opencv-python
-pillow
-python-dotenv
 google-api-python-client
 google-auth
-google-auth-oauthlib
 google-auth-httplib2
+google-auth-oauthlib
 google-genai
+python-dotenv
+Pillow
+gunicorn
