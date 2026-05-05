@@ -1,6 +1,5 @@
 Flask
 numpy
-opencv-python
 google-api-python-client
 google-auth
 google-auth-httplib2
