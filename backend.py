@@ -4,15 +4,15 @@ from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from google import genai
 from google.genai import types
-import easyocr, cv2, io, base64
+import easyocr, io, base64
 from PIL import Image
+import numpy as np
 
 load_dotenv()
 
 SCOPES = ["https://www.googleapis.com/auth/forms.body"]
 DISCOVERY_DOC = "https://forms.googleapis.com/$discovery/rest?version=v1"
 
-# Gemini setup
 genai_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 def get_form_service_from_token(access_token):
@@ -24,8 +24,6 @@ def get_form_service_from_token(access_token):
         discoveryServiceUrl=DISCOVERY_DOC,
         static_discovery=False,
     )
-
-
 
 def generateFormQuestions(amount, difficulty, topic, language, questionType, isQuiz, image=None):
     global cropped
@@ -52,18 +50,16 @@ Rules
 This is invalid format: {{'Ice Hockey': ['Ice Hockey', 'Lacrosse', 'Basketball', 'Soccer'], 'Lacrosse': ['Ice Hockey', 'Lacrosse', 'Basketball', 'Soccer']}}
 Only return valid JSON. No comments, no extra text, no markdown.
 """
-    
+
     if image is not None:
-        img_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        pil_image = Image.fromarray(img_rgb)
+        img = Image.open(io.BytesIO(image.tobytes())).convert("RGB")
         buffered = io.BytesIO()
-        pil_image.save(buffered, format="JPEG")
+        img.save(buffered, format="JPEG")
         buffered.seek(0)
         image_upload = genai_client.files.upload(file=buffered, config={"mime_type": "image/jpeg"})
         prompt += " An image was uploaded. Use this image to follow users instructions and base your questions off of it."
         print("[DEBUG] IMAGE UPLOADED")
-        
-        # Proper content structure with image
+
         contents = [
             {
                 "role": "user",
@@ -74,10 +70,9 @@ Only return valid JSON. No comments, no extra text, no markdown.
             }
         ]
     else:
-        # Content structure without image
         contents = [
             {
-                "role": "user", 
+                "role": "user",
                 "parts": [{"text": prompt}]
             }
         ]
@@ -86,20 +81,20 @@ Only return valid JSON. No comments, no extra text, no markdown.
         model="gemini-2.5-flash",
         contents=contents,
     )
+
     try:
         print("[DEBUG] RAW GEMINI OUTPUT:", response.text)
-        
-        # Clean the response text to remove markdown code blocks
+
         response_text = response.text.strip()
         if response_text.startswith("```json"):
-            response_text = response_text[7:]  # Remove ```json
+            response_text = response_text[7:]
         if response_text.startswith("```"):
-            response_text = response_text[3:]   # Remove ```
+            response_text = response_text[3:]
         if response_text.endswith("```"):
-            response_text = response_text[:-3]  # Remove trailing ```
-        
+            response_text = response_text[:-3]
+
         response_text = response_text.strip()
-        
+
         return json.loads(response_text) if isinstance(response_text, str) else response_text
     except Exception as e:
         print("[!] Failed to parse Gemini response:", e)
@@ -148,12 +143,10 @@ def create_form_with_questions(form_data, access_token, shuffle=True, is_quiz=Tr
             "title": question,
             "questionItem": {
                 "question": {
-                    "required": is_quiz  # Move required inside the question object
+                    "required": is_quiz
                 },
             }
         }
-
-        grading = None
 
         grading = None
 
@@ -179,12 +172,10 @@ def create_form_with_questions(form_data, access_token, shuffle=True, is_quiz=Tr
             if is_quiz:
                 correct_values = []
                 if isinstance(correct, str):
-                    # Handle comma-separated values
                     correct_values = [v.strip() for v in correct.split(",")]
                 elif isinstance(correct, list):
                     correct_values = correct
-                
-                # Filter to only include values that exist in choices
+
                 correct_values = [v for v in correct_values if v in choices]
 
                 if correct_values:
@@ -222,10 +213,9 @@ def create_form_with_questions(form_data, access_token, shuffle=True, is_quiz=Tr
             print(f"[!] Question {i+1} has unsupported type '{q_type}'. Skipping.")
             continue
 
-        # Add grading to the question if it exists
         if grading:
             item["questionItem"]["question"]["grading"] = grading
-        print(item)    
+        print(item)
 
         requests.append({
             "createItem": {
